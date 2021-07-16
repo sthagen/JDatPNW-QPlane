@@ -5,7 +5,7 @@ import os
 
 class QLearn():
 
-    def __init__(self, n_stat, n_acts, gamm, lr, eps, dec, min, epsDecay, expName, *args, **kwargs):
+    def __init__(self, n_stat, n_acts, gamm, lr, eps, dec, min, epsDecay, expName, saveForAutoReload, loadModel, usePredefinedSeeds, *args, **kwargs):
         self.n_states = n_stat
         self.n_actions = n_acts
         self.gamma = gamm
@@ -18,6 +18,15 @@ class QLearn():
         self.experimentName = expName
         self.id = "regular"
         self.currentTable = []
+        self.loadModel = loadModel
+        self.saveForAutoReload = saveForAutoReload
+
+        if(loadModel):
+            self.qTable = np.load("model.npy")
+
+        if(usePredefinedSeeds):
+            random.seed(42)
+            np.random.seed(42)
 
     # get action for current state
     def selectAction(self, state, episode, n_epochs):
@@ -50,4 +59,6 @@ class QLearn():
     def archive(self, epoch):
         if not os.path.exists("./Experiments/" + self.experimentName):
             os.makedirs("./Experiments/" + self.experimentName)
-        np.save("./Experiments/" + str(self.experimentName) + "/" + str(epoch) + ".npy", self.qTable)
+        np.save("./Experiments/" + str(self.experimentName) + "/model" + str(epoch) + ".npy", self.qTable)
+        if(self.saveForAutoReload):
+            np.save("model.npy", self.qTable)

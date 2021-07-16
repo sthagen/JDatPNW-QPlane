@@ -1,16 +1,8 @@
 import socket
 import time
-import os
 import numpy as np
 from src.algorithms.QDoubleDeepLearn import QLearn  # can be QLearn, QDeepLearn or QDoubleDeepLearn
 from src.environments.jsbsim.JSBSimEnv import Env  # can be jsbsim.JSBSimEnv or xplane.XPlaneEnv
-
-experimentName = "Experiment"
-
-dateTime = str(time.ctime(time.time()))
-dateTime = dateTime.replace(":", "-")
-dateTime = dateTime.replace(" ", "_")
-experimentName = experimentName + "-" + dateTime
 
 errors = 0.0  # counts everytime the UDP packages are lost on all retries
 
@@ -19,17 +11,17 @@ timeEnd = time.time()  # used to measure time
 logPeriod = 10  # every so many epochs the metrics will be printed into the console
 savePeriod = 25  # every so many epochs the table/model will be saved to a file
 pauseDelay = 0.01  # time an action is being applied to the environment
-logDecimals = 0  # sets decimals for np.arrays to X for printing
+logDecimals = 4  # sets decimals for np.arrays to X for printing
 np.set_printoptions(precision=logDecimals)  # sets decimals for np.arrays to X for printing
 
 n_epochs = 5000  # Number of generations
-n_steps = 1000  # Number of inputs per generation
+n_steps = 1750  # Number of inputs per generation
 n_actions = 4  # Number of possible inputs to choose from
 
-n_states = 729  # Number of states for non-Deep QLearning
+n_states = 729  # Number of states
 gamma = 0.95  # The discount rate - between 0 an 1!  if = 0 then no learning, ! The higher it is the more the new q will factor into the update of the q value
-lr = 0.0001  # Learning Rate. Deep ~0.0001 / non-Deep ~0.01 - If LR is 0 then the Q value would not update. The higher the value the quicker the agent will adopt the NEW Q value. If lr = 1, the updated value would be exactly be the newly calculated q value, completely ignoring the previous one
-epsilon = 1.0  # Starting Epsilon Rate, affects the exploration probability. Will decay
+lr = 0.0001  # Learning Rate. If LR is 0 then the Q value would not update. The higher the value the quicker the agent will adopt the NEW Q value. If lr = 1, the updated value would be exactly be the newly calculated q value, completely ignoring the previous one
+epsilon = 0.0  # Starting Epsilon Rate, affects the exploration probability. Will decay
 decayRate = 0.00001  # Rate at which epsilon will decay per step
 epsilonMin = 0.1  # Minimum value at which epsilon will stop decaying
 n_epochsBeforeDecay = 10  # number of games to be played before epsilon starts to decay
@@ -41,13 +33,14 @@ batchSize = 256  # Batch size for the model
 updateRate = 5  # update target model every so many episodes
 startingOffset = 0  # is used if previous Results are loaded.
 
-loadModel = False  # will load "model.h5" for tf if True (model.npy for non-Deep)
-loadMemory = False  # will load "memory.pickle" if True
-loadResults = False  # will load "results.npy" if True
-jsbRender = False  # will send UDP data to flight gear for rendering if True
-jsbRealTime = False  # will slow down the physics to portrait real time rendering
-usePredefinedSeeds = False  # Sets seeds for tf, np and random for more replicable results (not fully replicable due to stochastic environments)
+loadModel = True  # will load "model.h5" for tf if True (model.npy for non-Deep)
+loadMemory = True  # will load "memory.pickle" if True
+loadResults = True  # will load "results.npy" if True
+jsbRender = True  # will send UDP data to flight gear for rendering if True
+jsbRealTime = True  # will slow down the physics to portrait real time rendering
+usePredefinedSeeds = True  # Sets seeds for tf, np and random for more replicable results (not fully replicable due to stochastic environments)
 saveForAutoReload = False  # Saves and overrides models, results and memory to the root
+
 
 dictObservation = {
     "lat": 0,
@@ -94,17 +87,6 @@ flightStartRotation = [[-flightStartPitch, -flightStartRoll, -flightStartVelocit
                        [flightStartPitch, 0, flightStartVelocityY],
                        [flightStartPitch, flightStartRoll, flightStartVelocityY]]
 
-epochRewards = []
-epochQs = []
-movingRate = 3 * len(flightStartRotation)  # Number given in number * len(flightStartRotation)
-movingEpRewards = {
-    "epoch": [],
-    "average": [],
-    "minimum": [],
-    "maximum": [],
-    "averageQ": [],
-    "epsilon": []}
-
 fallbackState = [0] * numOfInputs  # Used in case of connection error to XPlane
 
 # Will load previous results in case a experiment needs to be continued
@@ -116,21 +98,12 @@ if(loadResults):
 
 if(usePredefinedSeeds):
     np.random.seed(42)
-
 Q = QLearn(n_states, n_actions, gamma, lr, epsilon,
-           decayRate, epsilonMin, n_epochsBeforeDecay, experimentName, saveForAutoReload, loadModel, usePredefinedSeeds,
+           decayRate, epsilonMin, n_epochsBeforeDecay, "testing", saveForAutoReload, loadModel, usePredefinedSeeds,
            loadMemory, numOfInputs, minReplayMemSize, replayMemSize, batchSize, updateRate)
 
 env = Env(flightOrigin, flightDestinaion, n_actions, usePredefinedSeeds,
           dictObservation, dictAction, dictRotation, startingVelocity, pauseDelay, Q.id, jsbRender, jsbRealTime)
-
-# saving setup pre run
-if not os.path.exists("./Experiments/" + experimentName):
-    os.makedirs("./Experiments/" + experimentName)
-    setup = f"{experimentName=}\n{dateTime=}\nendTime=not yet defined - first save\n{Q.id=}\n{env.id=}\n{pauseDelay=}\n{n_epochs=}\n{n_steps=}\n{n_actions=}\n"
-    setup += f"{n_states=} - states for non deep\n{gamma=}\n{lr=}\n{epsilon=}\n{decayRate=}\n{epsilonMin=}\n{n_epochsBeforeDecay=}\n"
-    setup += f"{numOfInputs=} - states for deep\n{minReplayMemSize=}\n{replayMemSize=}\n{batchSize=}\n{updateRate=}\n{loadModel=}\n{movingRate=}\n"
-    print(setup, file=open("./Experiments/" + str(experimentName) + "/setup.out", 'w'))  # saves hyperparameters to the experiment folder
 
 
 # prints out all metrics
@@ -197,7 +170,6 @@ def step(i_step, done, reward, oldState):
     actions_binary = info[1]
     control = info[2]
 
-    Q.learn(oldState, action, reward, newState, done)
     oldState = newState
     logList = [oldState, newState, action, actions_binary, newPosition, control, explore, currentEpsilon]
     return done, reward, logList
@@ -223,9 +195,6 @@ def epoch(i_epoch):
             oldState = 0
         errors += 1
 
-    if(i_epoch % savePeriod == 0):
-        Q.archive(i_epoch)
-
     done = False
     reward = 0
 
@@ -241,35 +210,8 @@ def epoch(i_epoch):
         if done:
             break
 
-    epochRewards.append(epochReward)
-    epochQs.append(epochQ)
-    if(i_epoch % movingRate == 0):
-        movingEpRewards["epoch"].append(i_epoch)
-        averageReward = sum(epochRewards[-movingRate:]) / len(epochRewards[-movingRate:])
-        movingEpRewards["average"].append(averageReward)
-        movingEpRewards["minimum"].append(min(epochRewards[-movingRate:]))
-        movingEpRewards["maximum"].append(max(epochRewards[-movingRate:]))
-        averageQ = sum(epochQs[-movingRate:]) / len(epochQs[-movingRate:])
-        movingEpRewards["averageQ"].append(averageQ)
-        movingEpRewards["epsilon"].append(logList[7])
 
-
-for i_epoch in range(startingOffset, startingOffset + n_epochs + 1):
+for i_epoch in range(n_epochs + 1):
     epoch(i_epoch)
-    if(i_epoch % savePeriod == 0):
-        np.save("./Experiments/" + str(experimentName) + "/results" + str(i_epoch) + ".npy", movingEpRewards)
-        if(saveForAutoReload):
-            np.save("results.npy", movingEpRewards)
-
-
-np.save("./Experiments/" + str(experimentName) + "/results_final.npy", movingEpRewards)
-
-endTime = str(time.ctime(time.time()))
-
-# saving setup post run
-setup = f"{experimentName=}\n{dateTime=}\n{endTime=}\n{Q.id=}\n{env.id=}\n{pauseDelay=}\n{n_epochs=}\n{n_steps=}\n{n_actions=}\n"
-setup += f"{n_states=} - states for non deep\n{gamma=}\n{lr=}\n{epsilon=}\n{decayRate=}\n{epsilonMin=}\n{n_epochsBeforeDecay=}\n"
-setup += f"{numOfInputs=} - states for deep\n{minReplayMemSize=}\n{replayMemSize=}\n{batchSize=}\n{updateRate=}\n{loadModel=}\n{movingRate=}\n"
-print(setup, file=open("./Experiments/" + str(experimentName) + "/setup.out", 'w'))  # saves hyperparameters to the experiment folder
 
 print("<<<<<<<<<<<<<<<<<<<<DONE>>>>>>>>>>>>>>>>>>>>>")

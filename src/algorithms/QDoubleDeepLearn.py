@@ -32,7 +32,7 @@ class QLearn():
 
         self.model = DQNAgent(inputs, self.n_actions, self.learningRate,
                               minReplay, replay, batch, self.gamma, update, loadModel, loadMemory)
-        self.id = "deep"
+        self.id = "doubleDeep"
         self.currentTable = []
 
     # get action for current state
@@ -149,7 +149,8 @@ class DQNAgent:
         # When using target network, query it, otherwise main network should be queried
         newCurrentStates = np.array([transition[3]
                                      for transition in miniBatch])
-        futureQsList = self.targetModel.predict(newCurrentStates)
+        futureQsListTarget = self.targetModel.predict(newCurrentStates)  # Used for DDQN
+        futureQsList = self.model.predict(newCurrentStates)  # Used for DDQN
 
         statesInput = []
         controlsOutput = []
@@ -160,7 +161,7 @@ class DQNAgent:
             # If not a terminal state, get new q from future states, otherwise set it to 0
             # almost like with Q Learning, but we use just part of equation here
             if not done:
-                maxFutureQ = np.max(futureQsList[index])
+                maxFutureQ = futureQsListTarget[index, np.argmax(futureQsList[index])]  # Used for DDQN
                 new_q = reward + self.gamma * maxFutureQ
             else:
                 new_q = reward

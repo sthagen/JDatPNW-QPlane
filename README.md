@@ -9,7 +9,7 @@
   <h3 align="center">QPlane</h3>
 
   <p align="center">
-    XPlane flight simulation controlled by a QLearning / Deep QLearning Algorithm
+    Fixed Wing Flight Simulation Environment for Reinforcement Learning
     <br />
     <br />
     <a href="https://github.com/JDatPNW/QPlane/issues">Report Bug</a>
@@ -54,10 +54,12 @@ This repository is being written as part of my masters thesis. I am trying to de
 
 ### Built With
 
-This section should list any major frameworks that you built your project using. Leave any add-ons/plugins for the acknowledgements section. Here are a few examples.
+This project is built with these frameworks, libraries, repositories and software:
 * [tensorflow](https://www.tensorflow.org/)
 * [XPlaneConnect](https://github.com/nasa/XPlaneConnect)
 * [XPlane 11](https://www.x-plane.com/)
+* [JSBSim](https://github.com/JSBSim-Team/jsbsim)
+* [Flightgear](https://www.flightgear.org/)
 
 
 
@@ -66,21 +68,23 @@ This section should list any major frameworks that you built your project using.
 
 Simple clone this repository to your local filesystem:
 ```sh
-git clone https://github.com/your_username_/Project-Name.git
+git clone https://github.com/JDatPNW/QPlane
 ```
 
 ### Prerequisites
 
-Guaranteed to work with:
+Tested and running with:
 
 |Software | Version|
 |-----|-----|
 |XPlane11 Version: | 11.50r3 (build 115033 64-bit, OpenGL)|
 |JSBSim Version: | 1.1.5 (GitHub build 277)|
+|Flightgear Version: | 2020.3.6|
 |XPlaneConnect Version: | 1.3-rc.2|
 |Python Version: | 3.8.2|
 |numpy Version: | 1.19.4|
 |tensorflow Version: | 2.3.0|
+|Anaconda Version: | 4.9.2|
 |Windows Version: | 1909|
 
 
@@ -88,22 +92,24 @@ Guaranteed to work with:
 
 1. Clone the repo
    ```sh
-   git clone https://github.com/your_username_/Project-Name.git
+   git clone https://github.com/JDatPNW/QPlane
    ```
 2. Install the above listed software (other versions might work)
-
+    * For JSBSim clone the JSBsim repo into `src/environments/jsbsim`
+    * For visualizing JSBSim download the c172r plane model in the Flightgear Menu
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
 Once downloaded and installed, simply execute the `QPlane.py` file to run and test the code.
+* For the XPlane Environment, XPlane (the game) needs to run.
+* For JSBSim with rendering, Flightgear needs to run with the following flags `--fdm=null --native-fdm=socket,in,60,localhost,5550,udp --aircraft=c172r --airport=RKJJ`
 
 <!-- ROADMAP -->
 ## Roadmap
 
 Planned future features are:
-* PPO implementation
-* JSBSim implementation (optional)
+* Double Deep Q Learning
 
 
 <!-- CONTRIBUTING -->
@@ -136,3 +142,10 @@ Github Pages: [JDatPNW](https://github.com/JDatPNW/JDatPNW.github.io)
 <!-- ACKNOWLEDGEMENTS -->
 ## Acknowledgements
 * [Readme Template](https://github.com/othneildrew/Best-README-Template)
+* [Python Programming - DeepRL DQN](https://pythonprogramming.net/q-learning-reinforcement-learning-python-tutorial/)
+* [Deeplizard - DeepRL DQN](https://deeplizard.com/learn/playlist/PLZbbT5o_s2xoWNVdDudn51XM8lOuZ_Njv)
+* [NeuralNetAI - DDQN](https://www.neuralnet.ai/) (Video found on the linked YouTube, not on  the site)
+* [Python Lessons - DeepRL PPO](https://pylessons.com/CartPole-reinforcement-learning/)
+* [adderbyte](https://github.com/adderbyte/GYM_XPLANE_ML)
+* [XPlane Forum](https://forums.x-plane.org/index.php?/forums/topic/236878-xplane11-xplaneconnect-question-about-resettingspawning-the-plane/&tab=comments#comment-2118006)
+* [JSBSim](https://github.com/JSBSim-Team/jsbsim)

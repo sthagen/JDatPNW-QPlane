@@ -1,11 +1,14 @@
 #Project Specific
 X-Plane.lnk
+FlightGear.lnk
 Experiments/*
 utils/*.npy
 *.h5
+*.npy
 src/algorithms/__pycache__/
 src/environments/__pycache__/
 src/environments/jsbsim/*/
+*.pickle
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -5,12 +5,11 @@ import time
 
 class Env():
 
-    def __init__(self, orig, dest, n_acts, endParam, dictObservation, dictAction, dictRotation, speed, pause, qID):
+    def __init__(self, orig, dest, n_acts, usePredefinedSeeds, dictObservation, dictAction, dictRotation, speed, pause, qID, *args, **kwargs):
         self.startingPosition = orig
         self.destinationPosition = dest
         self.previousPosition = orig
         self.n_actions = n_acts
-        self.endThreshold = endParam
         self.xpc = imp.load_source('xpc', './src/environments/xplane/xpc.py')  # path is relative to the location of the QPlane.py file
         self.dictObservation = dictObservation
         self.dictAction = dictAction
@@ -18,6 +17,10 @@ class Env():
         self.startingVelocity = speed
         self.pauseDelay = pause
         self.qID = qID
+        self.id = "XPlane"
+
+        if(usePredefinedSeeds):
+            np.random.seed(42)
 
     def send_posi(self, posi, rotation):
         posi[self.dictObservation["pitch"]] = rotation[self.dictRotation["pitch"]]
@@ -28,14 +31,14 @@ class Env():
 
     def send_velo(self, rotation):
         client = self.xpc.XPlaneConnect()
-
+        #  I could try the q DREF https://developer.x-plane.com/article/movingtheplane/
         client.sendDREF("sim/flightmodel/position/local_vx", 0)  # The velocity in local OGL coordinates +vx=E -vx=W
         client.sendDREF("sim/flightmodel/position/local_vy", rotation[self.dictRotation["velocityY"]])  # The velocity in local OGL coordinates +=Vertical (up)
-        client.sendDREF("sim/flightmodel/position/local_vz", self.startingVelocity)  # The velocity in local OGL coordinates -vz=S +vz=N
+        client.sendDREF("sim/flightmodel/position/local_vz", self.startingVelocity)  # The velocity in local OGL coordinates +vz=S -vz=N
 
         client.sendDREF("sim/flightmodel/position/local_ax", 0)  # The acceleration in local OGL coordinates +ax=E -ax=W
         client.sendDREF("sim/flightmodel/position/local_ay", 0)  # The acceleration in local OGL coordinates +=Vertical (up)
-        client.sendDREF("sim/flightmodel/position/local_az", 0)  # The acceleration in local OGL coordinates -az=S +az=N
+        client.sendDREF("sim/flightmodel/position/local_az", 0)  # The acceleration in local OGL coordinates +az=S -az=N
 
         client.sendDREF("sim/flightmodel/weight/m_fuel1", 65.0)  # fuel quantity failure_enum
         client.sendDREF("sim/flightmodel/weight/m_fuel2", 65.0)  # fuel quantity failure_enum
@@ -70,9 +73,9 @@ class Env():
         client = self.xpc.XPlaneConnect()
 
         '''
-        local_vx:   The velocity in local OGL coordinates
-        local_vy:   The velocity in local OGL coordinates
-        local_vz:   The velocity in local OGL coordinates
+        local_vx:   The velocity in local OGL coordinates - The +X axis points east from the reference point.
+        local_vy:   The velocity in local OGL coordinates - The +Y axis points straight up away from the center of the earth at the reference point.
+        local_vz:   The velocity in local OGL coordinates - The +Z axis points south from the reference point.
         local_ax:   The acceleration in local OGL coordinates
         local_ay:   The acceleration in local OGL coordinates
         local_az:   The acceleration in local OGL coordinates
@@ -83,13 +86,12 @@ class Env():
         P_dot:      The roll angular acceleration (relative to the flight)
         Q_dot:      The pitch angular acceleration (relative to the flight)
         R_dot:      The yaw angular acceleration rates (relative to the flight)
+        alpha:      The pitch relative to the flown path (angle of attack)
+        beta:       The heading relative to the flown path (yaw)
         '''
 
-        drefs = ["sim/flightmodel/position/local_vx", "sim/flightmodel/position/local_vy", "sim/flightmodel/position/local_vz",
-                 "sim/flightmodel/position/local_ax", "sim/flightmodel/position/local_ay", "sim/flightmodel/position/local_az",
-                 "sim/flightmodel/position/groundspeed",
-                 "sim/flightmodel/position/P", "sim/flightmodel/position/Q", "sim/flightmodel/position/R",
-                 "sim/flightmodel/position/P_dot", "sim/flightmodel/position/Q_dot", "sim/flightmodel/position/R_dot"]
+        drefs = ["sim/flightmodel/position/P", "sim/flightmodel/position/Q", "sim/flightmodel/position/R",
+                 "sim/flightmodel/position/alpha", "sim/flightmodel/position/beta"]
 
         values = client.getDREFs(drefs)
 
@@ -97,11 +99,16 @@ class Env():
 
         return values
 
-    def getCrashed(self):
+    def getTermination(self):
         client = self.xpc.XPlaneConnect()
         crash = client.getDREF("sim/flightmodel2/misc/has_crashed")
+        aoa = client.getDREF("sim/flightmodel/position/alpha")
         client.close()
-        return crash
+        if(crash[0] or aoa[0] >= 16):
+            terminate = True
+        else:
+            terminate = False
+        return terminate
 
     def send_Pause(self, pause):
         client = self.xpc.XPlaneConnect()
@@ -109,6 +116,11 @@ class Env():
         client.close()
 
     def send_Ctrl(self, ctrl):
+        '''
+        ctrl[0]: + Stick back (elevator pointing up) / - Stick in (elevator pointing down)
+        ctrl[1]: + Stick right (right aileron up) / - Stick left (left aileron up)
+        ctrl[2]: + Peddal (Rudder) right / - Peddal (Rudder) left
+        '''
         client = self.xpc.XPlaneConnect()
         client.sendCTRL(ctrl)
         client.close()
@@ -213,7 +225,7 @@ class Env():
 
     def getDeepState(self, observation):
         velocities = self.getVelo()
-        positions = observation[:-1]
+        positions = observation[3:-1]
         vel = []
         for i in range(len(velocities)):
             vel.append(velocities[i][0])
@@ -249,7 +261,7 @@ class Env():
             reward = reward * 0.1
 
         done = False
-        if(self.getCrashed()):  # Would be used for end parameter - for example, if plane crahsed done, or if plane reached end done
+        if(self.getTermination()):  # Would be used for end parameter - for example, if plane crahsed done, or if plane reached end done
             done = True
             reward = -1
 
@@ -267,14 +279,14 @@ class Env():
 
         position = self.get_Posi()
 
-        if self.qID == "deep":
+        if self.qID == "deep" or self.qID == "doubleDeep":
             state = self.getDeepState(position)
         else:
             state = self.getState(position)
 
         done = False
         reward = 0
-        reward, done = self.rewardFunction(action, state)
+        reward, done = self.rewardFunction(action, position)
 
         info = [position, actions_binary, newCtrl]
         return state, reward, done, info
@@ -285,7 +297,7 @@ class Env():
         #  self.send_envParam()
         self.send_Ctrl([0, 0, 0, 0, 0, 0, 1])  # this means it will not control the stick during the reset
         new_posi = self.get_Posi()
-        if self.qID == "deep":
+        if self.qID == "deep" or self.qID == "doubleDeep":
             state = self.getDeepState(new_posi)
         else:
             state = self.getState(new_posi)
